@@ -288,10 +288,19 @@ void exec_fs_sync_work(void)
 }
 EXPORT_SYMBOL(exec_fs_sync_work);
 
+/*
+ * This function is protected against re-entrancy.
+ */
 static unsigned long oops_begin(void)
 {
 	int cpu;
 	unsigned long flags;
+
+	if (!in_atomic())
+	{
+		pr_emerg("sys_sync:try sys sync in die\n");
+		exec_fs_sync_work();
+	}
 
 	oops_enter();
 

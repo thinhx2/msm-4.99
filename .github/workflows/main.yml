@@ -1,0 +1,64 @@
+name: buildbot
+ 
+on:
+  push:
+    branches: [ 10.0-wip ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -qq git curl bc bison flex libssl-dev make libc6-dev libncurses5-dev zip
+        
+    - name: Get submodules
+      run: git submodule update --init --recursive
+      
+    - name: Get toolchains
+      run: |
+        mkdir clang
+        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/master/clang-r377782d.tar.gz
+        tar -C "clang" -xvzf clang-r377782d.tar.gz
+        git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 --branch=master --depth=1
+        git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 --branch=master --depth=1
+      
+    - name: Build
+      run: |
+        make O=out ARCH=arm64 sirius_defconfig
+        PATH="${PWD}/clang/bin:${PWD}/aarch64-linux-android-4.9/bin:${PATH}" \
+        make -j4 O=out \
+              ARCH=arm64 \
+              CLANG_TRIPLE=aarch64-linux-gnu- \
+              CROSS_COMPILE=aarch64-linux-android- \
+              CC=clang 2>&1 | tee kernel.log    
+      env: 
+        CROSS_COMPILE_ARM32: $(GITHUB_WORKSPACE)/arm-linux-androideabi-4.9/bin/arm-linux-androideabi-
+        KBUILD_BUILD_USER: uixdess
+
+    - name: Send log
+      run: curl -F chat_id="$CHAT_ID" -F document=@"kernel.log" -F parse_mode=markdown https://api.telegram.org/bot"$BOT_API_TOKEN"/sendDocument
+      env: 
+        BOT_API_TOKEN: ${{ secrets.BOT_API_TOKEN }}
+        CHAT_ID:  ${{ secrets.CHAT_ID }}
+    
+    - name: Variable declaration
+      run: echo "::set-env name=ZIPNAME::kernel-sirius-$(date +%Y%m%d)-$(date +%H%M).zip"    
+    
+    - name: Pack
+      run: |
+        git clone https://github.com/spacetree1/AnyKernel3.git --branch=sirius --depth=1
+        cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3
+        cd AnyKernel3
+        ls -l
+        zip -r9 "${ZIPNAME}" * -x README.md "${ZIPNAME}"
+        ls -l
+    - name: Upload to Telegram
+      run: curl -F chat_id="$CHAT_ID" -F document=@"AnyKernel3/${ZIPNAME}" -F parse_mode=markdown https://api.telegram.org/bot"$BOT_API_TOKEN"/sendDocument
+      env: 
+        BOT_API_TOKEN: ${{ secrets.BOT_API_TOKEN }}
+        CHAT_ID:  ${{ secrets.CHAT_ID }}

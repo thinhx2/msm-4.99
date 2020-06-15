@@ -34,6 +34,11 @@
  */
 #define CAM_ISP_CTX_CFG_MAX                     22
 
+/*
+ * Maximum entries in state monitoring array for error logging
+ */
+#define CAM_ISP_CTX_STATE_MONITOR_MAX_ENTRIES   20
+
 /* forward declaration */
 struct cam_isp_context;
 
@@ -57,6 +62,19 @@ enum cam_isp_ctx_activated_substate {
 	CAM_ISP_CTX_ACTIVATED_MAX,
 };
 
+/**
+ * enum cam_isp_state_change_trigger - Different types of ISP events
+ *
+ */
+enum cam_isp_state_change_trigger {
+	CAM_ISP_STATE_CHANGE_TRIGGER_ERROR,
+	CAM_ISP_STATE_CHANGE_TRIGGER_SOF,
+	CAM_ISP_STATE_CHANGE_TRIGGER_REG_UPDATE,
+	CAM_ISP_STATE_CHANGE_TRIGGER_EPOCH,
+	CAM_ISP_STATE_CHANGE_TRIGGER_EOF,
+	CAM_ISP_STATE_CHANGE_TRIGGER_DONE,
+	CAM_ISP_STATE_CHANGE_TRIGGER_MAX
+};
 
 /**
  * struct cam_isp_ctx_irq_ops - Function table for handling IRQ callbacks

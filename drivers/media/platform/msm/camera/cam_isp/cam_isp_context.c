@@ -1234,6 +1234,12 @@ static int __cam_isp_ctx_flush_req_in_top_state(
 	struct cam_context *ctx,
 	struct cam_req_mgr_flush_request *flush_req)
 {
+	struct cam_isp_context           *ctx_isp =
+			(struct cam_isp_context *) ctx->ctx_priv;
+	struct cam_isp_stop_args          stop_isp;
+	struct cam_hw_stop_args           stop_args;
+	struct cam_isp_start_args         start_isp;
+	struct cam_hw_reset_args          reset_args;
 	int rc = 0;
 
 	CAM_DBG(CAM_ISP, "try to flush pending list");

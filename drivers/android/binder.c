@@ -2136,11 +2136,6 @@ static struct binder_thread *binder_get_txn_from_and_acq_inner(
 
 static void binder_free_transaction(struct binder_transaction *t)
 {
-<<<<<<< HEAD
-	struct binder_proc *target_proc = t->to_proc;
-
-	if (target_proc) {
-=======
 	struct binder_proc *target_proc;
 
 	spin_lock(&t->lock);
@@ -2149,18 +2144,10 @@ static void binder_free_transaction(struct binder_transaction *t)
 		atomic_inc(&target_proc->tmp_ref);
 		spin_unlock(&t->lock);
 
->>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 		binder_inner_proc_lock(target_proc);
 		if (t->buffer)
 			t->buffer->transaction = NULL;
 		binder_inner_proc_unlock(target_proc);
-<<<<<<< HEAD
-	}
-	/*
-	 * If the transaction has no target_proc, then
-	 * t->buffer->transaction has already been cleared.
-	 */
-=======
 		binder_proc_dec_tmpref(target_proc);
 	} else {
 		/*
@@ -2169,7 +2156,6 @@ static void binder_free_transaction(struct binder_transaction *t)
 		 */
 		spin_unlock(&t->lock);
 	}
->>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 	kfree(t);
 	binder_stats_deleted(BINDER_STAT_TRANSACTION);
 }
@@ -3877,10 +3863,7 @@ static int binder_thread_write(struct binder_proc *proc,
 				     proc->pid, thread->pid, (u64)data_ptr,
 				     buffer->debug_id,
 				     buffer->transaction ? "active" : "finished");
-<<<<<<< HEAD
-=======
 
->>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 			binder_inner_proc_lock(proc);
 			if (buffer->transaction) {
 				buffer->transaction->buffer = NULL;

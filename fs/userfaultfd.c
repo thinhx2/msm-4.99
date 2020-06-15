@@ -503,13 +503,8 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
 			else
 				prev = vma;
 		}
-<<<<<<< HEAD
-		vma->vm_flags = new_flags;
-                WRITE_ONCE(vma->vm_flags, new_flags);
-=======
 		vm_write_begin(vma);
 		WRITE_ONCE(vma->vm_flags, new_flags);
->>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 		vma->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
 		vm_write_end(vma);
 	}

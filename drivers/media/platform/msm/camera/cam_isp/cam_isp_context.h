@@ -1,9 +1,5 @@
-<<<<<<< HEAD
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2020 XiaoMi, Inc.
-=======
 /* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
->>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -106,25 +102,6 @@ struct cam_isp_ctx_req {
 };
 
 /**
-<<<<<<< HEAD
- * struct cam_isp_context  - ISP context object
- *
- * @base:                  Common context object pointer
- * @frame_id:              Frame id tracking for the isp context
- * @substate_actiavted:    Current substate for the activated state.
- * @substate_machine:      ISP substate machine for external interface
- * @substate_machine_irq:  ISP substate machine for irq handling
- * @req_base:              Common request object storage
- * @req_isp:               ISP private request object storage
- * @hw_ctx:                HW object returned by the acquire device command
- * @sof_timestamp_val:     Captured time stamp value at sof hw event
- * @active_req_cnt:        Counter for the active request
- * @reported_req_id:       Last reported request id
- * @subscribe_event:       The irq event mask that CRM subscribes to, IFE will
- *                         invoke CRM cb at those event.
- * @last_applied_req_id:   Last applied request id
- * @frame_skip_count:      Number of frame to skip before change state
-=======
  * struct cam_isp_context_state_monitor - ISP context state
  *                                        monitoring for
  *                                        debug purposes
@@ -167,7 +144,6 @@ struct cam_isp_context_state_monitor {
  * @cam_isp_ctx_state_monitor: State monitoring array
  * @rdi_only_context:          Get context type information.
  *                             true, if context is rdi only context
->>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
  *
  */
 struct cam_isp_context {

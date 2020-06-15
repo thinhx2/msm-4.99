@@ -1,9 +1,5 @@
-<<<<<<< HEAD
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
- * Copyright (C) 2020 XiaoMi, Inc.
-=======
 /* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
->>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1343,13 +1339,9 @@ int32_t cam_cci_core_cfg(struct v4l2_subdev *sd,
 		mutex_unlock(&cci_dev->init_mutex);
 		break;
 	case MSM_CCI_RELEASE:
-<<<<<<< HEAD
-		rc = cam_cci_release(sd, cci_ctrl);
-=======
 		mutex_lock(&cci_dev->init_mutex);
 		rc = cam_cci_release(sd);
 		mutex_unlock(&cci_dev->init_mutex);
->>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 		break;
 	case MSM_CCI_I2C_READ:
 		rc = cam_cci_read_bytes(sd, cci_ctrl);

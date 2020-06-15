@@ -796,10 +796,7 @@ static int snd_compr_drain(struct snd_compr_stream *stream)
 	default:
 		break;
 	}
-<<<<<<< HEAD
-=======
 	mutex_unlock(&stream->device->lock);
->>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 
 	retval = stream->ops->trigger(stream, SND_COMPR_TRIGGER_DRAIN);
 	mutex_lock(&stream->device->lock);

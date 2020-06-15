@@ -341,9 +341,6 @@ static int __cam_isp_ctx_handle_buf_done_in_activated_state(
 			req_isp->num_fence_map_out);
 		WARN_ON(req_isp->num_acked > req_isp->num_fence_map_out);
 	}
-<<<<<<< HEAD
-	if (req_isp->num_acked == req_isp->num_fence_map_out) {
-=======
 
 	if (req_isp->num_acked != req_isp->num_fence_map_out)
 		return rc;
@@ -361,7 +358,6 @@ static int __cam_isp_ctx_handle_buf_done_in_activated_state(
 			"Move active request %lld to pending list(cnt = %d) [bubble recovery]",
 			 req->request_id, ctx_isp->active_req_cnt);
 	} else {
->>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 		list_del_init(&req->list);
 		list_add_tail(&req->list, &ctx->free_req_list);
 		ctx_isp->active_req_cnt--;
@@ -1054,8 +1050,6 @@ static int __cam_isp_ctx_apply_req_in_activated_state(
 	 *
 	 */
 	ctx_isp = (struct cam_isp_context *) ctx->ctx_priv;
-<<<<<<< HEAD
-=======
 	if (atomic_read(&ctx_isp->process_bubble)) {
 		CAM_ERR_RATE_LIMIT(CAM_ISP,
 			"Processing bubble cannot apply Request Id %llu",
@@ -1065,7 +1059,6 @@ static int __cam_isp_ctx_apply_req_in_activated_state(
 	}
 
 	spin_lock_bh(&ctx->lock);
->>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 	req = list_first_entry(&ctx->pending_req_list, struct cam_ctx_request,
 		list);
 
@@ -1245,12 +1238,7 @@ static int __cam_isp_ctx_flush_req_in_top_state(
 
 	CAM_DBG(CAM_ISP, "try to flush pending list");
 	rc = __cam_isp_ctx_flush_req(ctx, &ctx->pending_req_list, flush_req);
-<<<<<<< HEAD
-	CAM_DBG(CAM_ISP, "Flush request in top state %d",
-		 ctx->state);
-	return rc;
-}
-=======
+
 	spin_unlock_bh(&ctx->lock);
 
 	atomic_set(&ctx_isp->process_bubble, 0);
@@ -1293,7 +1281,6 @@ static int __cam_isp_ctx_flush_req_in_top_state(
 		flush_req);
 		ctx_isp->active_req_cnt = 0;
 		spin_unlock_bh(&ctx->lock);
->>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 
 static int __cam_isp_ctx_flush_req_in_activated(
 	struct cam_context *ctx,

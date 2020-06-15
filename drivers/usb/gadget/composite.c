@@ -2197,10 +2197,6 @@ void composite_disconnect(struct usb_gadget *gadget)
 	 * disconnect callbacks?
 	 */
 	spin_lock_irqsave(&cdev->lock, flags);
-<<<<<<< HEAD
-=======
-	cdev->suspended = 0;
->>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 	if (cdev->config) {
         cdev->suspended = 0;
 		if (gadget->is_chipidea && !cdev->suspended) {

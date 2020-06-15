@@ -341,7 +341,27 @@ static int __cam_isp_ctx_handle_buf_done_in_activated_state(
 			req_isp->num_fence_map_out);
 		WARN_ON(req_isp->num_acked > req_isp->num_fence_map_out);
 	}
+<<<<<<< HEAD
 	if (req_isp->num_acked == req_isp->num_fence_map_out) {
+=======
+
+	if (req_isp->num_acked != req_isp->num_fence_map_out)
+		return rc;
+
+	ctx_isp->active_req_cnt--;
+
+	if (req_isp->bubble_detected && req_isp->bubble_report) {
+		req_isp->num_acked = 0;
+		req_isp->bubble_detected = false;
+		list_del_init(&req->list);
+		list_add(&req->list, &ctx->pending_req_list);
+		atomic_set(&ctx_isp->process_bubble, 0);
+
+		CAM_DBG(CAM_REQ,
+			"Move active request %lld to pending list(cnt = %d) [bubble recovery]",
+			 req->request_id, ctx_isp->active_req_cnt);
+	} else {
+>>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 		list_del_init(&req->list);
 		list_add_tail(&req->list, &ctx->free_req_list);
 		ctx_isp->active_req_cnt--;
@@ -604,6 +624,7 @@ static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
 		notify.req_id = req->request_id;
 		notify.error = CRM_KMD_ERR_BUBBLE;
 		ctx->ctx_crm_intf->notify_err(&notify);
+		atomic_set(&ctx_isp->process_bubble, 1);
 		CAM_DBG(CAM_ISP, "Notify CRM about Bubble frame %lld",
 			ctx_isp->frame_id);
 	} else {
@@ -1033,6 +1054,18 @@ static int __cam_isp_ctx_apply_req_in_activated_state(
 	 *
 	 */
 	ctx_isp = (struct cam_isp_context *) ctx->ctx_priv;
+<<<<<<< HEAD
+=======
+	if (atomic_read(&ctx_isp->process_bubble)) {
+		CAM_ERR_RATE_LIMIT(CAM_ISP,
+			"Processing bubble cannot apply Request Id %llu",
+			apply->request_id);
+		rc = -EAGAIN;
+		goto end;
+	}
+
+	spin_lock_bh(&ctx->lock);
+>>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 	req = list_first_entry(&ctx->pending_req_list, struct cam_ctx_request,
 		list);
 
@@ -1212,10 +1245,55 @@ static int __cam_isp_ctx_flush_req_in_top_state(
 
 	CAM_DBG(CAM_ISP, "try to flush pending list");
 	rc = __cam_isp_ctx_flush_req(ctx, &ctx->pending_req_list, flush_req);
+<<<<<<< HEAD
 	CAM_DBG(CAM_ISP, "Flush request in top state %d",
 		 ctx->state);
 	return rc;
 }
+=======
+	spin_unlock_bh(&ctx->lock);
+
+	atomic_set(&ctx_isp->process_bubble, 0);
+	if (flush_req->type == CAM_REQ_MGR_FLUSH_TYPE_ALL) {
+		/* if active and wait list are empty, return */
+		spin_lock_bh(&ctx->lock);
+		if ((list_empty(&ctx->wait_req_list)) &&
+			(list_empty(&ctx->active_req_list))) {
+			spin_unlock_bh(&ctx->lock);
+			CAM_DBG(CAM_ISP,
+				"ctx id:%d active and wait list are empty",
+				ctx->ctx_id);
+			goto end;
+		}
+		spin_unlock_bh(&ctx->lock);
+
+		/* Stop hw first before active list flush */
+		stop_args.ctxt_to_hw_map = ctx_isp->hw_ctx;
+		stop_isp.hw_stop_cmd = CAM_ISP_HW_STOP_AT_FRAME_BOUNDARY;
+		stop_isp.stop_only = true;
+		stop_args.args = (void *)&stop_isp;
+		ctx->hw_mgr_intf->hw_stop(ctx->hw_mgr_intf->hw_mgr_priv,
+				&stop_args);
+		CAM_DBG(CAM_ISP, "try to reset hw");
+		/* Reset hw */
+		reset_args.ctxt_to_hw_map = ctx_isp->hw_ctx;
+		rc = ctx->hw_mgr_intf->hw_reset(ctx->hw_mgr_intf->hw_mgr_priv,
+			&reset_args);
+		if (rc)
+			goto end;
+
+		spin_lock_bh(&ctx->lock);
+		CAM_DBG(CAM_ISP, "ctx id:%d try to flush wait list",
+			ctx->ctx_id);
+		rc = __cam_isp_ctx_flush_req(ctx, &ctx->wait_req_list,
+		flush_req);
+		CAM_DBG(CAM_ISP, "ctx id:%d try to flush active list",
+			ctx->ctx_id);
+		rc = __cam_isp_ctx_flush_req(ctx, &ctx->active_req_list,
+		flush_req);
+		ctx_isp->active_req_cnt = 0;
+		spin_unlock_bh(&ctx->lock);
+>>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 
 static int __cam_isp_ctx_flush_req_in_activated(
 	struct cam_context *ctx,
@@ -2187,6 +2265,7 @@ static int __cam_isp_ctx_start_dev_in_ready(struct cam_context *ctx,
 	arg.num_hw_update_entries = req_isp->num_cfg;
 	arg.priv  = &req_isp->hw_update_data;
 
+	atomic_set(&ctx_isp->process_bubble, 0);
 	ctx_isp->frame_id = 0;
 	ctx_isp->active_req_cnt = 0;
 	ctx_isp->reported_req_id = 0;
@@ -2284,6 +2363,7 @@ static int __cam_isp_ctx_stop_dev_in_activated_unlock(
 	ctx_isp->frame_id = 0;
 	ctx_isp->active_req_cnt = 0;
 	ctx_isp->reported_req_id = 0;
+	atomic_set(&ctx_isp->process_bubble, 0);
 
 	CAM_DBG(CAM_ISP, "next state %d", ctx->state);
 	return rc;

@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
  * Copyright (C) 2020 XiaoMi, Inc.
+=======
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+>>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,6 +31,7 @@
 #include <linux/timer.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/mutex.h>
 #include <media/cam_sensor.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-ioctl.h>
@@ -196,6 +201,16 @@ enum cam_cci_state_t {
  * @cci_wait_sync_cfg: CCI sync config
  * @cycles_per_us: Cycles per micro sec
  * @payload_size: CCI packet payload size
+<<<<<<< HEAD
+=======
+ * @irq_status1: Store irq_status1 to be cleared after
+ *               draining FIFO buffer for burst read
+ * @lock_status: to protect changes to irq_status1
+ * @is_burst_read: Flag to determine if we are performing
+ *                 a burst read operation or not
+ * @init_mutex: Mutex for maintaining refcount for attached
+ *              devices to cci during init/deinit.
+>>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
  */
 struct cci_device {
 	struct v4l2_subdev subdev;
@@ -221,6 +236,13 @@ struct cci_device {
 	uint8_t payload_size;
 	char device_name[20];
 	uint32_t cpas_handle;
+<<<<<<< HEAD
+=======
+	uint32_t irq_status1;
+	spinlock_t lock_status;
+	bool is_burst_read;
+	struct mutex init_mutex;
+>>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 };
 
 enum cam_cci_i2c_cmd_type {

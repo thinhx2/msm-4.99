@@ -395,7 +395,10 @@ no_rx:
 
 static inline void msm_wait_for_xmitr(struct uart_port *port)
 {
+<<<<<<< HEAD
 
+=======
+>>>>>>> 8b90c500e9e79c3c2b3a4df8a29142bc029379d6
 	u32 count = 500000;
 
 	while (!(msm_read(port, UART_SR) & UART_SR_TX_EMPTY)) {

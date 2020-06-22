@@ -210,6 +210,9 @@ static void ufshcd_update_uic_error_cnt(struct ufs_hba *hba, u32 reg, int type)
 /* UIC command timeout, unit: ms */
 #define UIC_CMD_TIMEOUT	500
 
+/*UIC PWR CTRL command timeout, unit: ms*/
+#define UIC_PWR_CTRL_CMD_TIMEOUT 3000
+
 /* NOP OUT retries waiting for NOP IN response */
 #define NOP_OUT_RETRIES    10
 /* Timeout after 30 msecs if NOP OUT hangs without response */
@@ -218,7 +221,7 @@ static void ufshcd_update_uic_error_cnt(struct ufs_hba *hba, u32 reg, int type)
 /* Query request retries */
 #define QUERY_REQ_RETRIES 3
 /* Query request timeout */
-#define QUERY_REQ_TIMEOUT 1500 /* 1.5 seconds */
+#define QUERY_REQ_TIMEOUT 3000 /* 3.0 seconds */
 
 /* Task management command timeout */
 #define TM_CMD_TIMEOUT	100 /* msecs */
@@ -1570,11 +1573,6 @@ start:
 		 */
 		if (ufshcd_can_hibern8_during_gating(hba) &&
 		    ufshcd_is_link_hibern8(hba)) {
-			if (async) {
-				rc = -EAGAIN;
-				hba->clk_gating.active_reqs--;
-				break;
-			}
 			spin_unlock_irqrestore(hba->host->host_lock, flags);
 			flush_work(&hba->clk_gating.ungate_work);
 			spin_lock_irqsave(hba->host->host_lock, flags);
@@ -2166,8 +2164,8 @@ static void __ufshcd_set_auto_hibern8_timer(struct ufs_hba *hba,
 {
 	pm_runtime_get_sync(hba->dev);
 	ufshcd_hold_all(hba);
-	ufshcd_scsi_block_requests(hba);
 	down_write(&hba->lock);
+	ufshcd_scsi_block_requests(hba);
 	/* wait for all the outstanding requests to finish */
 	ufshcd_wait_for_doorbell_clr(hba, U64_MAX);
 	ufshcd_set_auto_hibern8_timer(hba, delay_ms);
@@ -3218,7 +3216,6 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	err = ufshcd_map_sg(hba, lrbp);
 	if (err) {
-		ufshcd_release(hba);
 		lrbp->cmd = NULL;
 		clear_bit_unlock(tag, &hba->lrb_in_use);
 		ufshcd_release_all(hba);
@@ -4527,7 +4524,7 @@ static int ufshcd_uic_pwr_ctrl(struct ufs_hba *hba, struct uic_command *cmd)
 	}
 
 	if (!wait_for_completion_timeout(hba->uic_async_done,
-					 msecs_to_jiffies(UIC_CMD_TIMEOUT))) {
+					 msecs_to_jiffies(UIC_PWR_CTRL_CMD_TIMEOUT))) {
 		dev_err(hba->dev,
 			"pwr ctrl cmd 0x%x with mode 0x%x completion timeout\n",
 			cmd->command, cmd->argument3);
@@ -6599,8 +6596,10 @@ static void ufshcd_rls_handler(struct work_struct *work)
 
 	hba = container_of(work, struct ufs_hba, rls_work);
 	pm_runtime_get_sync(hba->dev);
-	ufshcd_scsi_block_requests(hba);
 	down_write(&hba->lock);
+	ufshcd_scsi_block_requests(hba);
+	if (ufshcd_is_shutdown_ongoing(hba))
+		goto out;
 	ret = ufshcd_wait_for_doorbell_clr(hba, U64_MAX);
 	if (ret) {
 		dev_err(hba->dev,
@@ -7581,11 +7580,9 @@ out:
  * will take effect only when its sent to "UFS device" well known logical unit
  * hence we require the scsi_device instance to represent this logical unit in
  * order for the UFS host driver to send the SSU command for power management.
-
  * We also require the scsi_device instance for "RPMB" (Replay Protected Memory
  * Block) LU so user space process can control this LU. User space may also
  * want to have access to BOOT LU.
-
  * This function tries to add scsi device instances for each of all well known
  * LUs (except "REPORT LUNS" LU) depending on device class.
  *
@@ -8066,7 +8063,6 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 	ufshcd_init_desc_sizes(hba);
 	ufs_advertise_fixup_device(hba);
 	ufshcd_tune_unipro_params(hba);
-
 	ufshcd_apply_pm_quirks(hba);
 	ret = ufshcd_set_vccq_rail_unused(hba,
 		(hba->dev_info.quirks & UFS_DEVICE_NO_VCCQ) ? true : false);
@@ -10271,8 +10267,8 @@ static int ufshcd_clock_scaling_prepare(struct ufs_hba *hba)
 	 * make sure that there are no outstanding requests when
 	 * clock scaling is in progress
 	 */
-	ufshcd_scsi_block_requests(hba);
 	down_write(&hba->lock);
+	ufshcd_scsi_block_requests(hba);
 	if (ufshcd_wait_for_doorbell_clr(hba, DOORBELL_CLR_TOUT_US)) {
 		ret = -EBUSY;
 		up_write(&hba->lock);

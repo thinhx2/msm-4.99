@@ -5,6 +5,7 @@
 #include <linux/nls.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget_configfs.h>
+#include <linux/power_supply.h>
 #include "configfs.h"
 #include "u_f.h"
 #include "u_os_desc.h"
@@ -17,6 +18,8 @@
 #ifdef CONFIG_USB_F_NCM
 #include <function/u_ncm.h>
 #endif
+
+#include <soc/qcom/boot_stats.h>
 
 #ifdef CONFIG_USB_CONFIGFS_F_ACC
 extern int acc_ctrlrequest(struct usb_composite_dev *cdev,
@@ -306,9 +309,6 @@ static ssize_t gadget_dev_desc_UDC_store(struct config_item *item,
 	struct gadget_info *gi = to_gadget_info(item);
 	char *name;
 	int ret;
-
-	if (strlen(page) < len)
-		return -EOVERFLOW;
 
 	name = kstrdup(page, GFP_KERNEL);
 	if (!name)
@@ -1424,6 +1424,24 @@ err_comp_cleanup:
 	return ret;
 }
 
+static int smblib_cancel_recheck(void)
+{
+	union power_supply_propval pval = {0};
+	struct power_supply *usb_psy;
+
+	usb_psy = power_supply_get_by_name("usb");
+	if (!usb_psy) {
+		pr_err("Could not get usb psy by cancel recheck\n");
+		return -ENODEV;
+	}
+
+	pval.intval = 0;
+	power_supply_set_property(usb_psy, POWER_SUPPLY_PROP_TYPE_RECHECK,
+					&pval);
+
+	return pval.intval;
+}
+
 #ifdef CONFIG_USB_CONFIGFS_UEVENT
 static void android_work(struct work_struct *data)
 {
@@ -1461,6 +1479,8 @@ static void android_work(struct work_struct *data)
 		kobject_uevent_env(&gi->dev->kobj,
 					KOBJ_CHANGE, configured);
 		pr_info("%s: sent uevent %s\n", __func__, configured[0]);
+		smblib_cancel_recheck();
+		place_marker("M - USB enumeration complete");
 		uevent_sent = true;
 	}
 
@@ -1503,7 +1523,98 @@ static void configfs_composite_unbind(struct usb_gadget *gadget)
 	spin_unlock_irqrestore(&gi->spinlock, flags);
 }
 
-#ifndef CONFIG_USB_CONFIGFS_UEVENT
+#ifdef CONFIG_USB_CONFIGFS_UEVENT
+static int android_setup(struct usb_gadget *gadget,
+			const struct usb_ctrlrequest *c)
+{
+	struct usb_composite_dev *cdev = get_gadget_data(gadget);
+	unsigned long flags;
+	struct gadget_info *gi = container_of(cdev, struct gadget_info, cdev);
+	int value = -EOPNOTSUPP;
+	struct usb_function_instance *fi;
+
+	spin_lock_irqsave(&cdev->lock, flags);
+	if (!gi->connected) {
+		gi->connected = 1;
+		schedule_work(&gi->work);
+	}
+	spin_unlock_irqrestore(&cdev->lock, flags);
+	list_for_each_entry(fi, &gi->available_func, cfs_list) {
+		if (fi != NULL && fi->f != NULL && fi->f->setup != NULL) {
+			value = fi->f->setup(fi->f, c);
+			if (value >= 0)
+				break;
+		}
+	}
+
+#ifdef CONFIG_USB_F_NCM
+	if (value < 0)
+		value = ncm_ctrlrequest(cdev, c);
+
+	/*
+	 * for mirror link command case, if it already been handled,
+	 * do not pass to composite_setup
+	 */
+	if (value == 0)
+		return value;
+#endif
+
+#ifdef CONFIG_USB_CONFIGFS_F_ACC
+	if (value < 0)
+		value = acc_ctrlrequest(cdev, c);
+#endif
+
+	if (value < 0)
+		value = composite_setup(gadget, c);
+
+	spin_lock_irqsave(&cdev->lock, flags);
+	if (c->bRequest == USB_REQ_SET_CONFIGURATION &&
+						cdev->config) {
+		schedule_work(&gi->work);
+	}
+	spin_unlock_irqrestore(&cdev->lock, flags);
+
+	return value;
+}
+
+static void android_disconnect(struct usb_gadget *gadget)
+{
+	struct usb_composite_dev        *cdev = get_gadget_data(gadget);
+	struct gadget_info *gi;
+
+	if (!cdev) {
+		pr_err("%s: gadget is not connected\n", __func__);
+		return;
+	}
+
+	gi = container_of(cdev, struct gadget_info, cdev);
+
+	/* FIXME: There's a race between usb_gadget_udc_stop() which is likely
+	 * to set the gadget driver to NULL in the udc driver and this drivers
+	 * gadget disconnect fn which likely checks for the gadget driver to
+	 * be a null ptr. It happens that unbind (doing set_gadget_data(NULL))
+	 * is called before the gadget driver is set to NULL and the udc driver
+	 * calls disconnect fn which results in cdev being a null ptr.
+	 */
+	if (cdev == NULL) {
+		WARN(1, "%s: gadget driver already disconnected\n", __func__);
+		return;
+	}
+
+	/* accessory HID support can be active while the
+		accessory function is not actually enabled,
+		so we need to inform it when we are disconnected.
+	*/
+
+#ifdef CONFIG_USB_CONFIGFS_F_ACC
+	acc_disconnect();
+#endif
+	gi->connected = 0;
+	if (!gi->unbinding)
+		schedule_work(&gi->work);
+	composite_disconnect(gadget);
+}
+#else
 static int configfs_composite_setup(struct usb_gadget *gadget,
 		const struct usb_ctrlrequest *ctrl)
 {

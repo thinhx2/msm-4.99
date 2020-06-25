@@ -30,6 +30,7 @@
 #include <linux/clk.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/delay.h>
 
 /* Operation Mode Strap Override */
 #define MII_KSZPHY_OMSO				0x16
